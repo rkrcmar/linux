@@ -35,6 +35,7 @@
 #include <linux/hrtimer.h>
 #include "kvm_cache_regs.h"
 #include "x86.h"
+#include "vmx.h"
 
 #include <asm/cpu.h>
 #include <asm/io.h>
@@ -170,15 +171,10 @@ static int ple_window_max        = KVM_VMX_DEFAULT_PLE_WINDOW_MAX;
 module_param(ple_window_max, int, S_IRUGO);
 
 extern const ulong vmx_return;
+static struct vmcs_config vmcs_config;
 
 #define NR_AUTOLOAD_MSRS 8
 #define VMCS02_POOL_SIZE 1
-
-struct vmcs {
-	u32 revision_id;
-	u32 abort;
-	char data[0];
-};
 
 /*
  * Track a VMCS that may be loaded on a certain CPU. If it is (cpu!=-1), also
@@ -936,18 +932,6 @@ static bool cpu_has_load_perf_global_ctrl;
 
 static DECLARE_BITMAP(vmx_vpid_bitmap, VMX_NR_VPIDS);
 static DEFINE_SPINLOCK(vmx_vpid_lock);
-
-static struct vmcs_config {
-	int size;
-	int order;
-	u32 basic_cap;
-	u32 revision_id;
-	u32 pin_based_exec_ctrl;
-	u32 cpu_based_exec_ctrl;
-	u32 cpu_based_2nd_exec_ctrl;
-	u32 vmexit_ctrl;
-	u32 vmentry_ctrl;
-} vmcs_config;
 
 static struct vmx_capability {
 	u32 ept;
