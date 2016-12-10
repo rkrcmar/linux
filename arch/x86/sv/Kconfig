@@ -1,0 +1,19 @@
+
+menuconfig SELF_VIRTUALIZATION
+	bool "Self Virtualization"
+	depends on X86_64
+	default n
+	---help---
+	  Say Y here to get to see options for running Linux inside a minimal
+	  hypervisor.
+
+	  Say N unless you want to throw the computer and data away.
+
+if SELF_VIRTUALIZATION
+config SV_VMX
+	bool "Self Virtualization on Intel processors"
+	default y
+	---help---
+	  The behavior is undefined.  You have been warned.
+
+endif # SELF_VIRTUALIZATION
