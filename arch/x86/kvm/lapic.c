@@ -618,7 +618,7 @@ static void apic_update_ppr(struct kvm_lapic *apic)
 
 	if (__apic_update_ppr(apic, &ppr) &&
 	    apic_has_interrupt_for_ppr(apic, ppr) != -1)
-		kvm_make_request(KVM_REQ_EVENT, apic->vcpu);
+		kvm_request_set(KVM_REQ_EVENT, apic->vcpu);
 }
 
 void kvm_apic_update_ppr(struct kvm_vcpu *vcpu)
@@ -980,7 +980,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		else {
 			kvm_lapic_set_irr(vector, apic);
 
-			kvm_make_request(KVM_REQ_EVENT, vcpu);
+			kvm_request_set(KVM_REQ_EVENT, vcpu);
 			kvm_vcpu_kick(vcpu);
 		}
 		break;
@@ -988,13 +988,13 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 	case APIC_DM_REMRD:
 		result = 1;
 		vcpu->arch.pv.pv_unhalted = 1;
-		kvm_make_request(KVM_REQ_EVENT, vcpu);
+		kvm_request_set(KVM_REQ_EVENT, vcpu);
 		kvm_vcpu_kick(vcpu);
 		break;
 
 	case APIC_DM_SMI:
 		result = 1;
-		kvm_make_request(KVM_REQ_SMI, vcpu);
+		kvm_request_set(KVM_REQ_SMI, vcpu);
 		kvm_vcpu_kick(vcpu);
 		break;
 
@@ -1012,7 +1012,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			/* make sure pending_events is visible before sending
 			 * the request */
 			smp_wmb();
-			kvm_make_request(KVM_REQ_EVENT, vcpu);
+			kvm_request_set(KVM_REQ_EVENT, vcpu);
 			kvm_vcpu_kick(vcpu);
 		} else {
 			apic_debug("Ignoring de-assert INIT to vcpu %d\n",
@@ -1028,7 +1028,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		/* make sure sipi_vector is visible for the receiver */
 		smp_wmb();
 		set_bit(KVM_APIC_SIPI, &apic->pending_events);
-		kvm_make_request(KVM_REQ_EVENT, vcpu);
+		kvm_request_set(KVM_REQ_EVENT, vcpu);
 		kvm_vcpu_kick(vcpu);
 		break;
 
@@ -1069,7 +1069,7 @@ static void kvm_ioapic_send_eoi(struct kvm_lapic *apic, int vector)
 	/* Request a KVM exit to inform the userspace IOAPIC. */
 	if (irqchip_split(apic->vcpu->kvm)) {
 		apic->vcpu->arch.pending_ioapic_eoi = vector;
-		kvm_make_request(KVM_REQ_IOAPIC_EOI_EXIT, apic->vcpu);
+		kvm_request_set(KVM_REQ_IOAPIC_EOI_EXIT, apic->vcpu);
 		return;
 	}
 
@@ -1101,7 +1101,7 @@ static int apic_set_eoi(struct kvm_lapic *apic)
 		kvm_hv_synic_send_eoi(apic->vcpu, vector);
 
 	kvm_ioapic_send_eoi(apic, vector);
-	kvm_make_request(KVM_REQ_EVENT, apic->vcpu);
+	kvm_request_set(KVM_REQ_EVENT, apic->vcpu);
 	return vector;
 }
 
@@ -1116,7 +1116,7 @@ void kvm_apic_set_eoi_accelerated(struct kvm_vcpu *vcpu, int vector)
 	trace_kvm_eoi(apic, vector);
 
 	kvm_ioapic_send_eoi(apic, vector);
-	kvm_make_request(KVM_REQ_EVENT, apic->vcpu);
+	kvm_request_set(KVM_REQ_EVENT, apic->vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_apic_set_eoi_accelerated);
 
@@ -1181,7 +1181,7 @@ static void __report_tpr_access(struct kvm_lapic *apic, bool write)
 	struct kvm_vcpu *vcpu = apic->vcpu;
 	struct kvm_run *run = vcpu->run;
 
-	kvm_make_request(KVM_REQ_REPORT_TPR_ACCESS, vcpu);
+	kvm_request_set(KVM_REQ_REPORT_TPR_ACCESS, vcpu);
 	run->tpr_access.rip = kvm_rip_read(vcpu);
 	run->tpr_access.is_write = write;
 }
@@ -2219,7 +2219,7 @@ int kvm_apic_set_state(struct kvm_vcpu *vcpu, struct kvm_lapic_state *s)
 		kvm_x86_ops->hwapic_isr_update(vcpu,
 				apic_find_highest_isr(apic));
 	}
-	kvm_make_request(KVM_REQ_EVENT, vcpu);
+	kvm_request_set(KVM_REQ_EVENT, vcpu);
 	if (ioapic_in_kernel(vcpu->kvm))
 		kvm_rtc_eoi_tracking_restore_one(vcpu);
 

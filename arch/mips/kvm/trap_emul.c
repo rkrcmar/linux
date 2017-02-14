@@ -1032,7 +1032,7 @@ static void kvm_trap_emul_check_requests(struct kvm_vcpu *vcpu, int cpu,
 	if (likely(!vcpu->requests))
 		return;
 
-	if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu)) {
+	if (kvm_request_test_and_clear(KVM_REQ_TLB_FLUSH, vcpu)) {
 		/*
 		 * Both kernel & user GVA mappings must be invalidated. The
 		 * caller is just about to check whether the ASID is stale

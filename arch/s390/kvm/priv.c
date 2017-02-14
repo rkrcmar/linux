@@ -998,7 +998,7 @@ int kvm_s390_handle_lctl(struct kvm_vcpu *vcpu)
 			break;
 		reg = (reg + 1) % 16;
 	} while (1);
-	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+	kvm_request_set(KVM_REQ_TLB_FLUSH, vcpu);
 	return 0;
 }
 
@@ -1070,7 +1070,7 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 			break;
 		reg = (reg + 1) % 16;
 	} while (1);
-	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+	kvm_request_set(KVM_REQ_TLB_FLUSH, vcpu);
 	return 0;
 }
 

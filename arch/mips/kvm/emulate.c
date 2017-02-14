@@ -864,7 +864,7 @@ enum emulation_result kvm_mips_emul_wait(struct kvm_vcpu *vcpu)
 		 * We we are runnable, then definitely go off to user space to
 		 * check if any I/O interrupts are pending.
 		 */
-		if (kvm_check_request(KVM_REQ_UNHALT, vcpu)) {
+		if (kvm_request_test_and_clear(KVM_REQ_UNHALT, vcpu)) {
 			clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
 			vcpu->run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
 		}

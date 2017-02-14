@@ -503,7 +503,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 			kvmppc_set_dar(vcpu, vcpu->arch.queued_dear);
 		if (update_epr == true) {
 			if (vcpu->arch.epr_flags & KVMPPC_EPR_USER)
-				kvm_make_request(KVM_REQ_EPR_EXIT, vcpu);
+				kvm_request_set(KVM_REQ_EPR_EXIT, vcpu);
 			else if (vcpu->arch.epr_flags & KVMPPC_EPR_KERNEL) {
 				BUG_ON(vcpu->arch.irq_type != KVMPPC_IRQ_MPIC);
 				kvmppc_mpic_set_epr(vcpu);
@@ -617,7 +617,7 @@ void kvmppc_watchdog_func(unsigned long data)
 
 	if (new_tsr & TSR_WIS) {
 		smp_wmb();
-		kvm_make_request(KVM_REQ_PENDING_TIMER, vcpu);
+		kvm_request_set(KVM_REQ_PENDING_TIMER, vcpu);
 		kvm_vcpu_kick(vcpu);
 	}
 
@@ -628,7 +628,7 @@ void kvmppc_watchdog_func(unsigned long data)
 	if (final && (vcpu->arch.tcr & TCR_WRC_MASK) &&
 	    vcpu->arch.watchdog_enabled) {
 		smp_wmb();
-		kvm_make_request(KVM_REQ_WATCHDOG, vcpu);
+		kvm_request_set(KVM_REQ_WATCHDOG, vcpu);
 		kvm_vcpu_kick(vcpu);
 	}
 
@@ -704,19 +704,19 @@ int kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
 {
 	int r = 1; /* Indicate we want to get back into the guest */
 
-	if (kvm_check_request(KVM_REQ_PENDING_TIMER, vcpu))
+	if (kvm_request_test_and_clear(KVM_REQ_PENDING_TIMER, vcpu))
 		update_timer_ints(vcpu);
 #if defined(CONFIG_KVM_E500V2) || defined(CONFIG_KVM_E500MC)
-	if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu))
+	if (kvm_request_test_and_clear(KVM_REQ_TLB_FLUSH, vcpu))
 		kvmppc_core_flush_tlb(vcpu);
 #endif
 
-	if (kvm_check_request(KVM_REQ_WATCHDOG, vcpu)) {
+	if (kvm_request_test_and_clear(KVM_REQ_WATCHDOG, vcpu)) {
 		vcpu->run->exit_reason = KVM_EXIT_WATCHDOG;
 		r = 0;
 	}
 
-	if (kvm_check_request(KVM_REQ_EPR_EXIT, vcpu)) {
+	if (kvm_request_test_and_clear(KVM_REQ_EPR_EXIT, vcpu)) {
 		vcpu->run->epr.epr = 0;
 		vcpu->arch.epr_needed = true;
 		vcpu->run->exit_reason = KVM_EXIT_EPR;
@@ -1830,7 +1830,7 @@ void kvmppc_set_tsr_bits(struct kvm_vcpu *vcpu, u32 tsr_bits)
 {
 	set_bits(tsr_bits, &vcpu->arch.tsr);
 	smp_wmb();
-	kvm_make_request(KVM_REQ_PENDING_TIMER, vcpu);
+	kvm_request_set(KVM_REQ_PENDING_TIMER, vcpu);
 	kvm_vcpu_kick(vcpu);
 }
 

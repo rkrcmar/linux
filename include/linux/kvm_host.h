@@ -1085,24 +1085,36 @@ static inline int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 
 #endif /* CONFIG_HAVE_KVM_EVENTFD */
 
-static inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)
+static inline void kvm_request_set(int req, struct kvm_vcpu *vcpu)
 {
 	/*
-	 * Ensure the rest of the request is published to kvm_check_request's
-	 * caller.  Paired with the smp_mb__after_atomic in kvm_check_request.
+	 * Ensure the rest of the request is published to
+	 * kvm_request_test_and_clear's caller.
+	 * Paired with the smp_mb__after_atomic in kvm_request_test_and_clear.
 	 */
 	smp_wmb();
 	set_bit(req, &vcpu->requests);
 }
 
-static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)
+static inline bool kvm_request_test(int req, struct kvm_vcpu *vcpu)
 {
-	if (test_bit(req, &vcpu->requests)) {
-		clear_bit(req, &vcpu->requests);
+	return test_bit(req, &vcpu->requests);
+}
+
+static inline void kvm_request_clear(int req, struct kvm_vcpu *vcpu)
+{
+	clear_bit(req, &vcpu->requests);
+}
+
+static inline bool kvm_request_test_and_clear(int req, struct kvm_vcpu *vcpu)
+{
+	if (kvm_request_test(req, vcpu)) {
+		kvm_request_clear(req, vcpu);
 
 		/*
-		 * Ensure the rest of the request is visible to kvm_check_request's
-		 * caller.  Paired with the smp_wmb in kvm_make_request.
+		 * Ensure the rest of the request is visible to
+		 * kvm_request_test_and_clear's caller.
+		 * Paired with the smp_wmb in kvm_request_set.
 		 */
 		smp_mb__after_atomic();
 		return true;

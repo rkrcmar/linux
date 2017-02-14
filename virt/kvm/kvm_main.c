@@ -178,7 +178,7 @@ bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 
 	me = get_cpu();
 	kvm_for_each_vcpu(i, vcpu, kvm) {
-		kvm_make_request(req, vcpu);
+		kvm_request_set(req, vcpu);
 		cpu = vcpu->cpu;
 
 		/* Set ->requests bit before we read ->mode. */
@@ -2125,7 +2125,7 @@ static void shrink_halt_poll_ns(struct kvm_vcpu *vcpu)
 static int kvm_vcpu_check_block(struct kvm_vcpu *vcpu)
 {
 	if (kvm_arch_vcpu_runnable(vcpu)) {
-		kvm_make_request(KVM_REQ_UNHALT, vcpu);
+		kvm_request_set(KVM_REQ_UNHALT, vcpu);
 		return -EINTR;
 	}
 	if (kvm_cpu_has_pending_timer(vcpu))

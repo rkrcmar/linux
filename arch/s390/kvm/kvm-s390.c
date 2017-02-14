@@ -2096,7 +2096,7 @@ void exit_sie(struct kvm_vcpu *vcpu)
 /* Kick a guest cpu out of SIE to process a request synchronously */
 void kvm_s390_sync_request(int req, struct kvm_vcpu *vcpu)
 {
-	kvm_make_request(req, vcpu);
+	kvm_request_set(req, vcpu);
 	kvm_s390_vcpu_request(vcpu);
 }
 
@@ -2401,24 +2401,24 @@ retry:
 	 * already finished. We might race against a second unmapper that
 	 * wants to set the blocking bit. Lets just retry the request loop.
 	 */
-	if (kvm_check_request(KVM_REQ_MMU_RELOAD, vcpu)) {
+	if (kvm_request_test_and_clear(KVM_REQ_MMU_RELOAD, vcpu)) {
 		int rc;
 		rc = gmap_mprotect_notify(vcpu->arch.gmap,
 					  kvm_s390_get_prefix(vcpu),
 					  PAGE_SIZE * 2, PROT_WRITE);
 		if (rc) {
-			kvm_make_request(KVM_REQ_MMU_RELOAD, vcpu);
+			kvm_request_set(KVM_REQ_MMU_RELOAD, vcpu);
 			return rc;
 		}
 		goto retry;
 	}
 
-	if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu)) {
+	if (kvm_request_test_and_clear(KVM_REQ_TLB_FLUSH, vcpu)) {
 		vcpu->arch.sie_block->ihcpu = 0xffff;
 		goto retry;
 	}
 
-	if (kvm_check_request(KVM_REQ_ENABLE_IBS, vcpu)) {
+	if (kvm_request_test_and_clear(KVM_REQ_ENABLE_IBS, vcpu)) {
 		if (!ibs_enabled(vcpu)) {
 			trace_kvm_s390_enable_disable_ibs(vcpu->vcpu_id, 1);
 			atomic_or(CPUSTAT_IBS,
@@ -2427,7 +2427,7 @@ retry:
 		goto retry;
 	}
 
-	if (kvm_check_request(KVM_REQ_DISABLE_IBS, vcpu)) {
+	if (kvm_request_test_and_clear(KVM_REQ_DISABLE_IBS, vcpu)) {
 		if (ibs_enabled(vcpu)) {
 			trace_kvm_s390_enable_disable_ibs(vcpu->vcpu_id, 0);
 			atomic_andnot(CPUSTAT_IBS,
@@ -2436,7 +2436,7 @@ retry:
 		goto retry;
 	}
 
-	if (kvm_check_request(KVM_REQ_ICPT_OPEREXC, vcpu)) {
+	if (kvm_request_test_and_clear(KVM_REQ_ICPT_OPEREXC, vcpu)) {
 		vcpu->arch.sie_block->ictl |= ICTL_OPEREXC;
 		goto retry;
 	}
@@ -2722,7 +2722,7 @@ static void sync_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if (kvm_run->kvm_dirty_regs & KVM_SYNC_CRS) {
 		memcpy(&vcpu->arch.sie_block->gcr, &kvm_run->s.regs.crs, 128);
 		/* some control register changes require a tlb flush */
-		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+		kvm_request_set(KVM_REQ_TLB_FLUSH, vcpu);
 	}
 	if (kvm_run->kvm_dirty_regs & KVM_SYNC_ARCH0) {
 		kvm_s390_set_cpu_timer(vcpu, kvm_run->s.regs.cputm);
@@ -2919,7 +2919,7 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 
 static void __disable_ibs_on_vcpu(struct kvm_vcpu *vcpu)
 {
-	kvm_check_request(KVM_REQ_ENABLE_IBS, vcpu);
+	kvm_request_test_and_clear(KVM_REQ_ENABLE_IBS, vcpu);
 	kvm_s390_sync_request(KVM_REQ_DISABLE_IBS, vcpu);
 }
 
@@ -2937,7 +2937,7 @@ static void __enable_ibs_on_vcpu(struct kvm_vcpu *vcpu)
 {
 	if (!sclp.has_ibs)
 		return;
-	kvm_check_request(KVM_REQ_DISABLE_IBS, vcpu);
+	kvm_request_test_and_clear(KVM_REQ_DISABLE_IBS, vcpu);
 	kvm_s390_sync_request(KVM_REQ_ENABLE_IBS, vcpu);
 }
 
@@ -2975,7 +2975,7 @@ void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu)
 	 * Another VCPU might have used IBS while we were offline.
 	 * Let's play safe and flush the VCPU at startup.
 	 */
-	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+	kvm_request_set(KVM_REQ_TLB_FLUSH, vcpu);
 	spin_unlock(&vcpu->kvm->arch.start_stop_lock);
 	return;
 }

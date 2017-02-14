@@ -100,7 +100,7 @@ static int synic_set_sint(struct kvm_vcpu_hv_synic *synic, int sint,
 		__clear_bit(vector, synic->auto_eoi_bitmap);
 
 	/* Load SynIC vectors into EOI exit bitmap */
-	kvm_make_request(KVM_REQ_SCAN_IOAPIC, synic_to_vcpu(synic));
+	kvm_request_set(KVM_REQ_SCAN_IOAPIC, synic_to_vcpu(synic));
 	return 0;
 }
 
@@ -170,7 +170,7 @@ static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 		}
 	}
 	if (stimers_pending)
-		kvm_make_request(KVM_REQ_HV_STIMER, vcpu);
+		kvm_request_set(KVM_REQ_HV_STIMER, vcpu);
 
 	idx = srcu_read_lock(&kvm->irq_srcu);
 	gsi = atomic_read(&synic->sint_to_gsi[sint]);
@@ -190,7 +190,7 @@ static void synic_exit(struct kvm_vcpu_hv_synic *synic, u32 msr)
 	hv_vcpu->exit.u.synic.evt_page = synic->evt_page;
 	hv_vcpu->exit.u.synic.msg_page = synic->msg_page;
 
-	kvm_make_request(KVM_REQ_HV_EXIT, vcpu);
+	kvm_request_set(KVM_REQ_HV_EXIT, vcpu);
 }
 
 static int synic_set_msr(struct kvm_vcpu_hv_synic *synic,
@@ -410,7 +410,7 @@ static void stimer_mark_pending(struct kvm_vcpu_hv_stimer *stimer,
 
 	set_bit(stimer->index,
 		vcpu_to_hv_vcpu(vcpu)->stimer_pending_bitmap);
-	kvm_make_request(KVM_REQ_HV_STIMER, vcpu);
+	kvm_request_set(KVM_REQ_HV_STIMER, vcpu);
 	if (vcpu_kick)
 		kvm_vcpu_kick(vcpu);
 }
@@ -752,7 +752,7 @@ static int kvm_hv_msr_set_crash_ctl(struct kvm_vcpu *vcpu, u64 data, bool host)
 			  hv->hv_crash_param[4]);
 
 		/* Send notification about crash to user space */
-		kvm_make_request(KVM_REQ_HV_CRASH, vcpu);
+		kvm_request_set(KVM_REQ_HV_CRASH, vcpu);
 	}
 
 	return 0;
@@ -939,7 +939,7 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 	case HV_X64_MSR_REFERENCE_TSC:
 		hv->hv_tsc_page = data;
 		if (hv->hv_tsc_page & HV_X64_MSR_TSC_REFERENCE_ENABLE)
-			kvm_make_request(KVM_REQ_MASTERCLOCK_UPDATE, vcpu);
+			kvm_request_set(KVM_REQ_MASTERCLOCK_UPDATE, vcpu);
 		break;
 	case HV_X64_MSR_CRASH_P0 ... HV_X64_MSR_CRASH_P4:
 		return kvm_hv_msr_set_crash_data(vcpu,
@@ -950,7 +950,7 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 	case HV_X64_MSR_RESET:
 		if (data == 1) {
 			vcpu_debug(vcpu, "hyper-v reset requested\n");
-			kvm_make_request(KVM_REQ_HV_RESET, vcpu);
+			kvm_request_set(KVM_REQ_HV_RESET, vcpu);
 		}
 		break;
 	default:

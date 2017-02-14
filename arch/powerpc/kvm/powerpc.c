@@ -190,7 +190,7 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 			 * NX. If that's the case, remove !PR NX capability.
 			 */
 			vcpu->arch.disable_kernel_nx = true;
-			kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+			kvm_request_set(KVM_REQ_TLB_FLUSH, vcpu);
 		}
 
 		vcpu->arch.magic_page_pa = param1 & ~0xfffULL;
