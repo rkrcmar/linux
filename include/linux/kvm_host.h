@@ -1085,6 +1085,18 @@ static inline int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 
 #endif /* CONFIG_HAVE_KVM_EVENTFD */
 
+/*
+ * __kvm_request_set has one main use:
+ *   - if kvm_request_set is called for all VCPUs in a loop, rendering the
+ *     barrier useless,
+ * and one possible, but tricky, use:
+ *   - if a VCPU verifiably does a request upon itself
+ */
+static inline void __kvm_request_set(int req, struct kvm_vcpu *vcpu)
+{
+	set_bit(req, &vcpu->requests);
+}
+
 static inline void kvm_request_set(int req, struct kvm_vcpu *vcpu)
 {
 	/*
@@ -1093,7 +1105,7 @@ static inline void kvm_request_set(int req, struct kvm_vcpu *vcpu)
 	 * Paired with the smp_mb__after_atomic in kvm_request_test_and_clear.
 	 */
 	smp_wmb();
-	set_bit(req, &vcpu->requests);
+	__kvm_request_set(req, vcpu);
 }
 
 static inline bool kvm_request_test(int req, struct kvm_vcpu *vcpu)
