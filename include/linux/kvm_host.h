@@ -1091,10 +1091,30 @@ static inline int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
  *     barrier useless,
  * and one possible, but tricky, use:
  *   - if a VCPU verifiably does a request upon itself
+ *
+ * Requests that never need a barrier because they have no dependency on state
+ * should return 0 when passed into __kvm_request_needs_mb().
  */
 static inline void __kvm_request_set(int req, struct kvm_vcpu *vcpu)
 {
 	set_bit(req, &vcpu->requests);
+}
+
+/*
+ * __kvm_request_needs_mb is used to improve performance, so it should have no
+ * runtime overhead.
+ */
+static inline bool __kvm_request_needs_mb(int req)
+{
+	if (!__builtin_constant_p(req))
+		return true;
+
+#ifdef kvm_arch_request_needs_mb
+	BUILD_BUG_ON(!__builtin_constant_p(kvm_arch_request_needs_mb(req)));
+	return kvm_arch_request_needs_mb(req);
+#else
+	return true;
+#endif
 }
 
 static inline void kvm_request_set(int req, struct kvm_vcpu *vcpu)
@@ -1104,7 +1124,8 @@ static inline void kvm_request_set(int req, struct kvm_vcpu *vcpu)
 	 * kvm_request_test_and_clear's caller.
 	 * Paired with the smp_mb__after_atomic in kvm_request_test_and_clear.
 	 */
-	smp_wmb();
+	if (__kvm_request_needs_mb(req))
+		smp_wmb();
 	__kvm_request_set(req, vcpu);
 }
 
@@ -1128,7 +1149,8 @@ static inline bool kvm_request_test_and_clear(int req, struct kvm_vcpu *vcpu)
 		 * kvm_request_test_and_clear's caller.
 		 * Paired with the smp_wmb in kvm_request_set.
 		 */
-		smp_mb__after_atomic();
+		if (__kvm_request_needs_mb(req))
+			smp_mb__after_atomic();
 		return true;
 	} else {
 		return false;

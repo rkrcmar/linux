@@ -183,7 +183,8 @@ bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 	 * kvm_request_test_and_clear's caller before setting the request.
 	 * Paired with the smp_mb__after_atomic in kvm_request_test_and_clear.
 	 */
-	smp_wmb();
+	if (__kvm_request_needs_mb(req))
+		smp_wmb();
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		__kvm_request_set(req, vcpu);
