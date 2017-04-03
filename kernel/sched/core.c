@@ -89,6 +89,7 @@
 #include "../smpboot.h"
 
 #define CREATE_TRACE_POINTS
+#include "trace.h"
 #include <trace/events/sched.h>
 
 DEFINE_MUTEX(sched_domains_mutex);
@@ -2092,6 +2093,11 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 		set_task_cpu(p, cpu);
 	}
 #endif /* CONFIG_SMP */
+	// sp_record_scheduling_event(SP_TRY_TO_WAKE_UP, p->wake_cpu, cpu);
+	// TODO
+	// what is trace_sched_waking(), trace_sched_wake_idle_without_ipi(),
+	// and trace_sched_wakeup() lacking?
+	trace_sched_wakeup2(p);
 
 	ttwu_queue(p, cpu, wake_flags);
 stat:
@@ -2582,6 +2588,7 @@ void wake_up_new_task(struct task_struct *p)
 
 	activate_task(rq, p, 0);
 	p->on_rq = TASK_ON_RQ_QUEUED;
+	// sp_record_scheduling_event(SP_WAKE_UP_NEW_TASK, 255, dst_cpu);
 	trace_sched_wakeup_new(p);
 	check_preempt_curr(rq, p, WF_FORK);
 #ifdef CONFIG_SMP
@@ -2993,6 +3000,9 @@ void sched_exec(void)
 		struct migration_arg arg = { p, dest_cpu };
 
 		raw_spin_unlock_irqrestore(&p->pi_lock, flags);
+		// sp_record_scheduling_event(SP_SCHED_EXEC, task_cpu(p), dest_cpu);
+		// TODO: better name
+		trace_sched_active_exec(p);
 		stop_one_cpu(task_cpu(p), migration_cpu_stop, &arg);
 		return;
 	}

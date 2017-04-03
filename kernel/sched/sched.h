@@ -22,6 +22,8 @@
 #define SCHED_WARN_ON(x)	((void)(x))
 #endif
 
+#include "trace.h"
+
 struct rq;
 struct cpuidle_state;
 
@@ -1401,6 +1403,8 @@ static inline void add_nr_running(struct rq *rq, unsigned count)
 	unsigned prev_nr = rq->nr_running;
 
 	rq->nr_running = prev_nr + count;
+	// sp_set_nr_running(&rq->nr_running, prev_nr + count, cpu_of(rq));
+	trace_sched_update_nr_running(cpu_of(rq), rq->nr_running, count);
 
 	if (prev_nr < 2 && rq->nr_running >= 2) {
 #ifdef CONFIG_SMP
@@ -1415,6 +1419,8 @@ static inline void add_nr_running(struct rq *rq, unsigned count)
 static inline void sub_nr_running(struct rq *rq, unsigned count)
 {
 	rq->nr_running -= count;
+	// sp_set_nr_running(&rq->nr_running, rq->nr_running - count, cpu_of(rq));
+	trace_sched_update_nr_running(cpu_of(rq), rq->nr_running, -count);
 	/* Check if we still need preemption */
 	sched_update_tick_dependency(rq);
 }

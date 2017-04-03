@@ -2606,8 +2606,12 @@ static void
 account_entity_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	update_load_add(&cfs_rq->load, se->load.weight);
-	if (!parent_entity(se))
+	if (!parent_entity(se)) {
 		update_load_add(&rq_of(cfs_rq)->load, se->load.weight);
+		// TODO: is this enough?
+		// sp_record_load_change(rq_of(cfs_rq)->load.weight, rq_of(cfs_rq)->cpu);
+		trace_sched_update_load_weight(cpu_of(rq_of(cfs_rq)), rq_of(cfs_rq)->load.weight, se->load.weight);
+	}
 #ifdef CONFIG_SMP
 	if (entity_is_task(se)) {
 		struct rq *rq = rq_of(cfs_rq);
@@ -2623,8 +2627,11 @@ static void
 account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	update_load_sub(&cfs_rq->load, se->load.weight);
-	if (!parent_entity(se))
+	if (!parent_entity(se)) {
 		update_load_sub(&rq_of(cfs_rq)->load, se->load.weight);
+		// sp_record_load_change(rq_of(cfs_rq)->load.weight, rq_of(cfs_rq)->cpu);
+		trace_sched_update_load_weight(cpu_of(rq_of(cfs_rq)), rq_of(cfs_rq)->load.weight, -se->load.weight);
+	}
 #ifdef CONFIG_SMP
 	if (entity_is_task(se)) {
 		account_numa_dequeue(rq_of(cfs_rq), task_of(se));
@@ -5491,6 +5498,9 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p,
 		}
 	} while (group = group->next, group != sd->groups);
 
+	// TODO
+	// sp_record_balancing_event(SP_CONSIDERED_CORES_FIG, this_cpu, considered_cores);
+
 	/*
 	 * The cross-over point between using spare capacity or least load
 	 * is too conservative for high utilization tasks on partially
@@ -5575,6 +5585,9 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
 			}
 		}
 	}
+
+	// TODO
+	// sp_record_balancing_event(SP_CONSIDERED_CORES_FIC, this_cpu, considered_cores);
 
 	return shallowest_idle_cpu != -1 ? shallowest_idle_cpu : least_loaded_cpu;
 }
@@ -5792,29 +5805,45 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
 	int i;
 
 	if (idle_cpu(target))
+		// TODO
+		// sp_record_balancing_event(SP_CONSIDERED_CORES_SIS, prev, considered_cores);
 		return target;
 
 	/*
 	 * If the previous cpu is cache affine and idle, don't be stupid.
 	 */
 	if (prev != target && cpus_share_cache(prev, target) && idle_cpu(prev))
+		// TODO
+		// sp_record_balancing_event(SP_CONSIDERED_CORES_SIS, prev, considered_cores);
 		return prev;
 
 	sd = rcu_dereference(per_cpu(sd_llc, target));
-	if (!sd)
+	if (!sd) {
+		// TODO
+		// sp_record_balancing_event(SP_CONSIDERED_CORES_SIS, prev, considered_cores);
 		return target;
+	}
 
 	i = select_idle_core(p, sd, target);
 	if ((unsigned)i < nr_cpumask_bits)
+		// TODO
+		// sp_record_balancing_event(SP_CONSIDERED_CORES_SIS, prev, considered_cores);
 		return i;
 
 	i = select_idle_cpu(p, sd, target);
 	if ((unsigned)i < nr_cpumask_bits)
+		// TODO
+		// sp_record_balancing_event(SP_CONSIDERED_CORES_SIS, prev, considered_cores);
 		return i;
 
 	i = select_idle_smt(p, sd, target);
 	if ((unsigned)i < nr_cpumask_bits)
+		// TODO
+		// sp_record_balancing_event(SP_CONSIDERED_CORES_SIS, prev, considered_cores);
 		return i;
+
+	// TODO
+	// sp_record_balancing_event(SP_CONSIDERED_CORES_SIS, prev, considered_cores);
 
 	return target;
 }
@@ -6782,7 +6811,7 @@ static const unsigned int sched_nr_migrate_break = 32;
  *
  * Returns number of detached tasks if successful and 0 otherwise.
  */
-static int detach_tasks(struct lb_env *env)
+static int detach_tasks(struct lb_env *env, enum cpu_idle_type idle)
 {
 	struct list_head *tasks = &env->src_rq->cfs_tasks;
 	struct task_struct *p;
@@ -6828,6 +6857,12 @@ static int detach_tasks(struct lb_env *env)
 			goto next;
 
 		detach_task(p, env);
+		// NOTE: CPU_NEWLY_IDLE maps to SP_IDLE_BALANCE,
+		//       the rest maps to SP_REBALANCE_DOMAINS
+		// sp_record_scheduling_event(event_type, cpu_of(env->src_rq), env->dst_cpu);
+		// the original trace was in detach_task, but it was not really needed there
+		trace_sched_detach_tasks(idle, cpu_of(env->src_rq), env->dst_cpu);
+
 		list_add(&p->se.group_node, &env->tasks);
 
 		detached++;
@@ -7374,6 +7409,9 @@ static inline void update_sg_lb_stats(struct lb_env *env,
 		if (!nr_running && idle_cpu(i))
 			sgs->idle_cpus++;
 	}
+
+	// TODO
+	// sp_record_balancing_event(SP_CONSIDERED_CORES_USLS, env->dst_cpu, considered_cores);
 
 	/* Adjust by relative CPU capacity of the group */
 	sgs->group_capacity = group->sgc->capacity;
@@ -7924,6 +7962,9 @@ static struct rq *find_busiest_queue(struct lb_env *env,
 		}
 	}
 
+	// TODO
+	// sp_record_balancing_event(SP_CONSIDERED_CORES_FBQ, env->dst_cpu, considered_cores);
+
 	return busiest;
 }
 
@@ -8082,7 +8123,7 @@ more_balance:
 		 * cur_ld_moved - load moved in current iteration
 		 * ld_moved     - cumulative load moved across iterations
 		 */
-		cur_ld_moved = detach_tasks(&env);
+		cur_ld_moved = detach_tasks(&env, idle);
 
 		/*
 		 * We've detached some tasks from busiest_rq. Every
@@ -8204,6 +8245,10 @@ more_balance:
 			raw_spin_unlock_irqrestore(&busiest->lock, flags);
 
 			if (active_balance) {
+				// NOTE: CPU_NEWLY_IDLE maps to SP_IDLE_BALANCE,
+				//       the rest maps to SP_REBALANCE_DOMAINS
+				// sp_record_scheduling_event (event_type + SP_ACTIVE_LOAD_BALANCE_CPU_STOP,cpu_of(busiest), this_cpu);
+				trace_sched_load_balance_stop_cpu(idle, this_cpu, cpu_of(busiest));
 				stop_one_cpu_nowait(cpu_of(busiest),
 					active_load_balance_cpu_stop, busiest,
 					&busiest->active_balance_work);

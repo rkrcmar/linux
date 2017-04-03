@@ -96,10 +96,21 @@ DEFINE_EVENT(sched_wakeup_template, sched_wakeup,
 	     TP_PROTO(struct task_struct *p),
 	     TP_ARGS(p));
 
+DEFINE_EVENT(sched_wakeup_template, sched_wakeup2,
+	     TP_PROTO(struct task_struct *p),
+	     TP_ARGS(p));
+
 /*
  * Tracepoint for waking up a new task:
  */
 DEFINE_EVENT(sched_wakeup_template, sched_wakeup_new,
+	     TP_PROTO(struct task_struct *p),
+	     TP_ARGS(p));
+
+/*
+ * Tracepoint for calling exec that stopped the target cpu:
+ */
+DEFINE_EVENT(sched_wakeup_template, sched_active_exec,
 	     TP_PROTO(struct task_struct *p),
 	     TP_ARGS(p));
 
@@ -562,6 +573,72 @@ TRACE_EVENT(sched_wake_idle_without_ipi,
 
 	TP_printk("cpu=%d", __entry->cpu)
 );
+
+
+DECLARE_EVENT_CLASS(sched_update_template,
+
+	TP_PROTO(int cpu, unsigned long value, long change),
+
+	TP_ARGS(cpu, value, change),
+
+	TP_STRUCT__entry(
+		__field(long,          change)
+		__field(unsigned long, value)
+		__field(int,           cpu)
+	),
+
+	TP_fast_assign(
+		__entry->cpu    = cpu;
+		__entry->value  = value;
+		__entry->change = change;
+	),
+
+	TP_printk("cpu=%u value=%lu (change=%ld)",
+			__entry->cpu, __entry->value, __entry->change)
+);
+
+DEFINE_EVENT(sched_update_template, sched_update_load_weight,
+	     TP_PROTO(int cpu, unsigned long value, long change),
+	     TP_ARGS(cpu, value, change));
+
+#define CPU_IDLE_TYPES \
+	{ CPU_IDLE,       "CPU_IDLE" }, \
+	{ CPU_NOT_IDLE,   "CPU_NOT_IDLE" }, \
+	{ CPU_NEWLY_IDLE, "CPU_NEWLY_IDLE" }
+
+DECLARE_EVENT_CLASS(sched_idle_template,
+
+	TP_PROTO(int idle, int this_cpu, int dst_cpu),
+
+	TP_ARGS(idle, this_cpu, dst_cpu),
+
+	TP_STRUCT__entry(
+		__field(int, idle)
+		__field(int, this_cpu)
+		__field(int, dst_cpu)
+	),
+
+	TP_fast_assign(
+		__entry->idle     = idle;
+		__entry->this_cpu = this_cpu;
+		__entry->dst_cpu  = dst_cpu;
+	),
+
+	TP_printk("idle=%s this_cpu=%u dst_cpu=%u",
+			__print_symbolic(__entry->idle, CPU_IDLE_TYPES),
+			__entry->this_cpu, __entry->dst_cpu)
+);
+
+// XXX: this_cpu and dst_cpu are not ideal, just done to save some copy-paste ...
+// XXX: enum cpu_idle_type turned into int
+DEFINE_EVENT(sched_idle_template, sched_detach_tasks,
+	TP_PROTO(int idle, int this_cpu, int dst_cpu),
+	TP_ARGS(idle, this_cpu, dst_cpu));
+
+DEFINE_EVENT(sched_idle_template, sched_load_balance_stop_cpu,
+	TP_PROTO(int idle, int this_cpu, int dst_cpu),
+	TP_ARGS(idle, this_cpu, dst_cpu));
+
 #endif /* _TRACE_SCHED_H */
 
 /* This part must be outside protection */
