@@ -22,7 +22,7 @@
 #define SCHED_WARN_ON(x)	((void)(x))
 #endif
 
-#include "trace.h"
+#include <trace/events/sched_hack.h>
 
 struct rq;
 struct cpuidle_state;

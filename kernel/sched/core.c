@@ -84,12 +84,11 @@
 #include <asm/paravirt.h>
 #endif
 
+#define CREATE_TRACE_POINTS
 #include "sched.h"
 #include "../workqueue_internal.h"
 #include "../smpboot.h"
 
-#define CREATE_TRACE_POINTS
-#include "trace.h"
 #include <trace/events/sched.h>
 
 DEFINE_MUTEX(sched_domains_mutex);

@@ -1,10 +1,10 @@
-#if !defined(_TRACE_SCHED_H_H) || defined(TRACE_HEADER_MULTI_READ)
-#define _TRACE_SCHED_H_H
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM sched_hack
+
+#if !defined(_TRACE_SCHED_HACK_H) || defined(TRACE_HEADER_MULTI_READ)
+#define _TRACE_SCHED_HACK_H
 
 #include <linux/tracepoint.h>
-
-#undef TRACE_SYSTEM
-#define TRACE_SYSTEM sched
 
 TRACE_EVENT(sched_update_nr_running,
 
@@ -30,11 +30,4 @@ TRACE_EVENT(sched_update_nr_running,
 
 #endif
 
-// TODO: wtf is wrong with this?
-//#undef TRACE_INCLUDE_PATH
-//#define TRACE_INCLUDE_PATH .
-//#undef TRACE_INCLUDE_FILE
-//#define TRACE_INCLUDE_FILE trace
-//
-///* This part must be outside protection */
-//#include <trace/define_trace.h>
+#include <trace/define_trace.h>
